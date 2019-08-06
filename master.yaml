@@ -35,7 +35,7 @@ Metadata:
       SSHRemoteAccessCIDR:
         default: Allowed bastion external access CIDR
       BastionKeyPairName:
-        default: Bastion host key pair name
+        default: Bastion host key pair nam
 
 Parameters:
   VPCCIDR:
@@ -112,3 +112,12 @@ Resources:
         VPCSubnetID: !GetAtt VPCStack.Outputs.ProjectXPublic1
         SSHRemoteAccessCIDR: !Ref SSHRemoteAccessCIDR
         BastionKeyPairName: !Ref BastionKeyPairName
+  AppStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://cfntutorialbob.s3-eu-west-1.amazonaws.com/app.yaml
+      Parameters:
+        VPCID: !GetAtt VPCStack.Outputs.ProjectXDVPCID
+        VPCSubnetID: !GetAtt VPCStack.Outputs.ProjectXPrivate1
+        BastionSecurityGroup: !GetAtt BastionStack.Outputs.BastionSG
+        KeyPairName: !Ref BastionKeyPairName

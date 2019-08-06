@@ -73,4 +73,6 @@ Outputs:
   BastionPublicIPAddress:
     Description: Bastion host public IP
     Value: !GetAtt BastionHost.PublicIp
-    
+  BastionSG:
+    Description: Bastion security group
+    Value: !Ref BastionSecurityGroup

@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC template for Project X
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Network Configuration
+      Parameters:
+      - VPCID
+      - VPCSubnetID
+      - BastionSecurityGroup
+      - KeyPairName
+    ParameterLabels:
+      VPCID:
+        default: VPC ID
+      VPCSubnetID:
+        default: VPC Subnet
+      BastionSecurityGroup:
+        default: Bastion security group ID
+      KeyPairName:
+        default: Key pair name
+
+Parameters:
+  VPCID:
+    Description: A VPC ID
+    Type: String
+  VPCSubnetID:
+    Description: A VPC subnet ID
+    Type: String
+  BastionSecurityGroup:
+    Description: Bastion security group ID
+    Type: String
+  KeyPairName: 
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: must be a valid Key Pair
+
+Resources:
+  PrivateHostSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+      Tags:
+        - Key: Name
+          Value: ProjectXPrivateHostSG
+
+
+  PrivateHost:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0ff760d16d9497662
+      InstanceType: t2.micro
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref VPCSubnetID
+      SecurityGroupIds: 
+        - !Ref PrivateHostSecurityGroup
+      Tags:
+        - Key: Name
+          Value: ProjectXPrivateHost
