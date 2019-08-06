@@ -8,14 +8,29 @@ Metadata:
         default: Network Configuration
       Parameters:
       - VPCID
-      - VPCSubnetID
+      - PublicSubnet1Id
+      - PublicSubnet2Id
+      - PublicSubnet3Id
+      - PrivateSubnet1Id
+      - PrivateSubnet2Id
+      - PrivateSubnet3Id
       - BastionSecurityGroup
       - KeyPairName
     ParameterLabels:
       VPCID:
         default: VPC ID
-      VPCSubnetID:
-        default: VPC Subnet
+      PublicSubnet1Id:
+        default: Public subnet 1 ID
+      Public subnet 2 ID:
+        default: Public subnet 2 ID
+      Public subnet 3 ID:
+        default: Public subnet 3 ID
+      PrivateSubnet1Id:
+        default: Private subnet 1 ID
+      Private subnet 2 ID:
+        default: Private subnet 2 ID
+      Private subnet 3 ID:
+        default: Private subnet 3 ID
       BastionSecurityGroup:
         default: Bastion security group ID
       KeyPairName:
@@ -25,8 +40,23 @@ Parameters:
   VPCID:
     Description: A VPC ID
     Type: String
-  VPCSubnetID:
-    Description: A VPC subnet ID
+  PublicSubnet1Id:
+    Description: public DMZ subnet 1 ID located in Availability Zone 1
+    Type: String
+  PublicSubnet2Id:
+    Description: public DMZ subnet 2 ID located in Availability Zone 2
+    Type: String
+  PublicSubnet3Id:
+    Description: public DMZ subnet 3 ID located in Availability Zone 3
+    Type: String
+  PrivateSubnet1Id:
+    Description: private DMZ subnet 1 ID located in Availability Zone 1
+    Type: String
+  PrivateSubnet2Id:
+    Description: private DMZ subnet 2 ID located in Availability Zone 2
+    Type: String
+  PrivateSubnet3Id:
+    Description: private DMZ subnet 3 ID located in Availability Zone 3
     Type: String
   BastionSecurityGroup:
     Description: Bastion security group ID
@@ -51,16 +81,41 @@ Resources:
         - Key: Name
           Value: ProjectXPrivateHostSG
 
-
-  PrivateHost:
-    Type: AWS::EC2::Instance
-    Properties: 
+  DeployAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
       ImageId: ami-0ff760d16d9497662
       InstanceType: t2.micro
       KeyName: !Ref KeyPairName
-      SubnetId: !Ref VPCSubnetID
-      SecurityGroupIds: 
+      SecurityGroups:
         - !Ref PrivateHostSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            # Add EPEL repository
+            yum install epel-release
+            # Install Nginx
+            yum install nginx
+            # Enable and start service
+            systemctl enable nginx
+            systemctl start nginx
+            
+  DeployAppASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1Id
+        - !Ref PrivateSubnet2Id
+        - !Ref PrivateSubnet3Id
+      DesiredCapacity: 1
+      LaunchConfigurationName: !Ref DeployAppLaunchConfig
+      MaxSize: 2
+      MinSize: 1
       Tags:
-        - Key: Name
-          Value: ProjectXPrivateHost
+          - Key: Name
+            Value: ProjectXASG
+            PropagateAtLaunch: True
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: True

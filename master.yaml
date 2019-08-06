@@ -118,6 +118,11 @@ Resources:
       TemplateURL: https://cfntutorialbob.s3-eu-west-1.amazonaws.com/app.yaml
       Parameters:
         VPCID: !GetAtt VPCStack.Outputs.ProjectXDVPCID
-        VPCSubnetID: !GetAtt VPCStack.Outputs.ProjectXPrivate1
+        PrivateSubnet1Id: !GetAtt VPCStack.Outputs.ProjectXPrivate1
+        PrivateSubnet2Id: !GetAtt VPCStack.Outputs.ProjectXPrivate2
+        PrivateSubnet3Id: !GetAtt VPCStack.Outputs.ProjectXPrivate3
+        PublicSubnet1Id: !GetAtt VPCStack.Outputs.ProjectXPublic1
+        PublicSubnet2Id: !GetAtt VPCStack.Outputs.ProjectXPublic2
+        PublicSubnet3Id: !GetAtt VPCStack.Outputs.ProjectXPublic3
         BastionSecurityGroup: !GetAtt BastionStack.Outputs.BastionSG
         KeyPairName: !Ref BastionKeyPairName
