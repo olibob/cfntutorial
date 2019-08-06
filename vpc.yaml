@@ -264,3 +264,26 @@ Resources:
     Properties: 
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref VPCPrivateSubnet3
+
+Outputs:
+  ProjectXDVPCID:
+    Description: "VPC Id"
+    Value: !Ref myVPC
+  ProjectXPublic1:
+    Description: Public Subnet1
+    Value: !Ref VPCPublicSubnet1
+  ProjectXPublic2:
+    Description: Public Subnet 2
+    Value: !Ref VPCPublicSubnet2
+  ProjectXPublic3:
+    Description: Public Subnet 3
+    Value: !Ref VPCPublicSubnet3
+  ProjectXPrivate1:
+    Description: Private Subnet1
+    Value: !Ref VPCPrivateSubnet1
+  ProjectXPrivate2:
+    Description: Private Subnet 2
+    Value: !Ref VPCPrivateSubnet2
+  ProjectXPrivate3:
+    Description: Private Subnet 3
+    Value: !Ref VPCPrivateSubnet3
