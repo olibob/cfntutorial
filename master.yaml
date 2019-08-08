@@ -17,6 +17,7 @@ Metadata:
       - PrivateSubnet3CIDR
       - SSHRemoteAccessCIDR
       - BastionKeyPairName
+      - ALBAccessCIDR
     ParameterLabels:
       VPCCIDR:
         default: VPC CIDR
@@ -35,7 +36,9 @@ Metadata:
       SSHRemoteAccessCIDR:
         default: Allowed bastion external access CIDR
       BastionKeyPairName:
-        default: Bastion host key pair nam
+        default: Bastion host key pair name
+      ALBAccessCIDR:
+        default: ALB access CIDR
 
 Parameters:
   VPCCIDR:
@@ -89,6 +92,10 @@ Parameters:
     Description: Amazon EC2 Key Pair
     Type: "AWS::EC2::KeyPair::KeyName"
     ConstraintDescription: must be a valid Key Pair
+  ALBAccessCIDR:
+    Description: ALB access CIDR
+    Type: String
+    Default: 0.0.0.0/0
 
 Resources:
   VPCStack:
@@ -126,3 +133,4 @@ Resources:
         PublicSubnet3Id: !GetAtt VPCStack.Outputs.ProjectXPublic3
         BastionSecurityGroup: !GetAtt BastionStack.Outputs.BastionSG
         KeyPairName: !Ref BastionKeyPairName
+        ALBAccessCIDR: !Ref ALBAccessCIDR

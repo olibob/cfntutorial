@@ -16,6 +16,7 @@ Metadata:
       - PrivateSubnet3Id
       - BastionSecurityGroup
       - KeyPairName
+      - ALBAccessCIDR
     ParameterLabels:
       VPCID:
         default: VPC ID
@@ -35,6 +36,8 @@ Metadata:
         default: Bastion security group ID
       KeyPairName:
         default: Key pair name
+      ALBAccessCIDR:
+        default: ALB access CIDR
 
 Parameters:
   VPCID:
@@ -65,6 +68,10 @@ Parameters:
     Description: Amazon EC2 Key Pair
     Type: "AWS::EC2::KeyPair::KeyName"
     ConstraintDescription: must be a valid Key Pair
+  ALBAccessCIDR:
+    Description: ALB access CIDR
+    Type: String
+    Default: 0.0.0.0/0
 
 Resources:
   PrivateHostSecurityGroup:
@@ -77,6 +84,10 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           SourceSecurityGroupId: !Ref BastionSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
       Tags:
         - Key: Name
           Value: ProjectXPrivateHostSG
@@ -110,6 +121,8 @@ Resources:
         - !Ref PrivateSubnet3Id
       DesiredCapacity: 1
       LaunchConfigurationName: !Ref DeployAppLaunchConfig
+      TargetGroupARNs:
+        - !Ref WebAppTargetGroup
       MaxSize: 2
       MinSize: 1
       Tags:
@@ -119,3 +132,74 @@ Resources:
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: True
+
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Enable HTTP/HTTPS access
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref ALBAccessCIDR
+        - IpProtocol: 'tcp'
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: !Ref ALBAccessCIDR
+      Tags:
+        - Key: Name
+          Value: ProjectXALBSG
+
+  WebAppALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+        - !Ref PublicSubnet3Id
+      Tags:
+        - Key: Name
+          Value: ProjectXALB
+      Type: application
+  
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: WebAppTargetGroup
+      LoadBalancerArn:
+        Ref: WebAppALB
+      Port: '80'
+      Protocol: HTTP
+
+  WebAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: '80'
+      Protocol: 'HTTP'
+      VpcId: !Ref VPCID
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Tags:
+        - Key: Name
+          Value: ProjectXWebAppTG
+
+Outputs:
+  ProjectXALBDNS:
+    Description: Web App ALB DNS Name 
+    Value:
+      Fn::Join:
+        - ''
+        - - "http://"
+          - Fn::GetAtt: WebAppALB.DNSName
