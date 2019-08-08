@@ -17,6 +17,7 @@ Metadata:
       - BastionSecurityGroup
       - KeyPairName
       - ALBAccessCIDR
+      - AgilePartnerCert
     ParameterLabels:
       VPCID:
         default: VPC ID
@@ -38,6 +39,8 @@ Metadata:
         default: Key pair name
       ALBAccessCIDR:
         default: ALB access CIDR
+      AgilePartnerCert:
+        default: Valid SSL certificate
 
 Parameters:
   VPCID:
@@ -72,6 +75,10 @@ Parameters:
     Description: ALB access CIDR
     Type: String
     Default: 0.0.0.0/0
+  AgilePartnerCert:
+    Description: Agile Partner SSL Certificate ARN
+    Type: String
+    ConstraintDescription: must be a valid Certificate ARN
 
 Resources:
   PrivateHostSecurityGroup:
@@ -88,6 +95,10 @@ Resources:
           FromPort: '80'
           ToPort: '80'
           SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
       Tags:
         - Key: Name
           Value: ProjectXPrivateHostSG
@@ -95,22 +106,11 @@ Resources:
   DeployAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-0ff760d16d9497662
+      ImageId: ami-0172c7e8739ccb954
       InstanceType: t2.micro
       KeyName: !Ref KeyPairName
       SecurityGroups:
         - !Ref PrivateHostSecurityGroup
-      UserData:
-        Fn::Base64:
-          Fn::Sub: |
-            #!/bin/bash -xe
-            # Add EPEL repository
-            yum install -y epel-release
-            # Install Nginx
-            yum install -y nginx
-            # Enable and start service
-            systemctl enable nginx
-            systemctl start nginx
             
   DeployAppASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -123,6 +123,7 @@ Resources:
       LaunchConfigurationName: !Ref DeployAppLaunchConfig
       TargetGroupARNs:
         - !Ref WebAppTargetGroup
+        - !Ref WebAppSecureTargetGroup
       MaxSize: 2
       MinSize: 1
       Tags:
@@ -179,6 +180,20 @@ Resources:
       Port: '80'
       Protocol: HTTP
 
+  SecureListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: WebAppSecureTargetGroup
+      LoadBalancerArn:
+        Ref: WebAppALB
+      Port: '443'
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref AgilePartnerCert
+
   WebAppTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -194,6 +209,22 @@ Resources:
       Tags:
         - Key: Name
           Value: ProjectXWebAppTG
+
+  WebAppSecureTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: '443'
+      Protocol: 'HTTPS'
+      VpcId: !Ref VPCID
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: 443
+      HealthCheckProtocol: HTTPS
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Tags:
+        - Key: Name
+          Value: ProjectXSecureTG
 
 Outputs:
   ProjectXALBDNS:

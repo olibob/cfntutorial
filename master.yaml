@@ -18,6 +18,7 @@ Metadata:
       - SSHRemoteAccessCIDR
       - BastionKeyPairName
       - ALBAccessCIDR
+      - AgilePartnerCert
     ParameterLabels:
       VPCCIDR:
         default: VPC CIDR
@@ -39,6 +40,8 @@ Metadata:
         default: Bastion host key pair name
       ALBAccessCIDR:
         default: ALB access CIDR
+      AgilePartnerCert:
+        default: Valid SSL certificate
 
 Parameters:
   VPCCIDR:
@@ -96,6 +99,10 @@ Parameters:
     Description: ALB access CIDR
     Type: String
     Default: 0.0.0.0/0
+  AgilePartnerCert:
+    Description: Agile Partner SSL Certificate ARN
+    Type: String
+    ConstraintDescription: must be a valid Certificate ARN
 
 Resources:
   VPCStack:
@@ -134,3 +141,4 @@ Resources:
         BastionSecurityGroup: !GetAtt BastionStack.Outputs.BastionSG
         KeyPairName: !Ref BastionKeyPairName
         ALBAccessCIDR: !Ref ALBAccessCIDR
+        AgilePartnerCert: !Ref AgilePartnerCert
