@@ -94,9 +94,9 @@ Resources:
           Fn::Sub: |
             #!/bin/bash -xe
             # Add EPEL repository
-            yum install epel-release
+            yum install -y epel-release
             # Install Nginx
-            yum install nginx
+            yum install -y nginx
             # Enable and start service
             systemctl enable nginx
             systemctl start nginx
