@@ -5,6 +5,10 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
+        default: Environment
+      Parameters:
+        - EnvironmentType
+    - Label:
         default: Network Configuration
       Parameters:
       - VPCID
@@ -15,9 +19,13 @@ Metadata:
       - PrivateSubnet2Id
       - PrivateSubnet3Id
       - BastionSecurityGroup
-      - KeyPairName
       - ALBAccessCIDR
       - AgilePartnerCert
+    - Label:
+        default: App Instance Configuration
+      Parameters:
+      - ServerInstanceType
+      - KeyPairName
     ParameterLabels:
       VPCID:
         default: VPC ID
@@ -41,6 +49,10 @@ Metadata:
         default: ALB access CIDR
       AgilePartnerCert:
         default: Valid SSL certificate
+      ServerInstanceType:
+        default: App node instance type
+      EnvironmentType:
+        default: Environment Type
 
 Parameters:
   VPCID:
@@ -79,6 +91,57 @@ Parameters:
     Description: Agile Partner SSL Certificate ARN
     Type: String
     ConstraintDescription: must be a valid Certificate ARN
+  ServerInstanceType:
+    AllowedValues:
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - m3.medium
+    - m3.large
+    - m3.xlarge
+    - m3.2xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c3.large
+    - c3.xlarge
+    - c3.2xlarge
+    - c3.4xlarge
+    - c3.8xlarge
+    - r3.large
+    - r3.xlarge
+    - r3.2xlarge
+    - r3.4xlarge
+    - r3.8xlarge
+    - i2.xlarge
+    - i2.2xlarge
+    - i2.4xlarge
+    - i2.8xlarge
+    ConstraintDescription: Choose an instance type.
+    Default: t2.micro
+    Description: App node node instance type
+    Type: String
+  EnvironmentType: 
+      Description: The environment type
+      Type: String
+      Default: dev
+      AllowedValues: 
+        - prod
+        - dev
+      ConstraintDescription: must be a prod or dev
+
+Mappings: 
+  RegionMap:
+      eu-west-1:
+        dev: ami-0172c7e8739ccb954
 
 Resources:
   PrivateHostSecurityGroup:
@@ -106,8 +169,12 @@ Resources:
   DeployAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-0172c7e8739ccb954
-      InstanceType: t2.micro
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - Ref: EnvironmentType
+      InstanceType: !Ref ServerInstanceType
       KeyName: !Ref KeyPairName
       SecurityGroups:
         - !Ref PrivateHostSecurityGroup
@@ -133,6 +200,54 @@ Resources:
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: True
+
+  AppScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref DeployAppASG
+      Cooldown: '60'
+      ScalingAdjustment: 1
+
+  AppScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref DeployAppASG
+      Cooldown: '300'
+      ScalingAdjustment: -1
+  
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU > 80% for 5 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      AlarmActions: [!Ref AppScaleUpPolicy]
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref DeployAppASG
+      ComparisonOperator: GreaterThanThreshold
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU < 60% for 5 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      AlarmActions: [!Ref AppScaleDownPolicy]
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref DeployAppASG
+      ComparisonOperator: LessThanThreshold
 
   ALBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
